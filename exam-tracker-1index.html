@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Board Exam Tracker</title>
+<style>
+  :root {
+    --paper: #eef2f6;
+    --card: #ffffff;
+    --ink: #1b2a4a;
+    --ink-soft: #55648a;
+    --line: #d5dde8;
+    --marigold: #f2b01e;
+    --done: #2e8b6a;
+    --alert: #d64545;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 20px 16px 56px; }
+  h1, h2, .big {
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  h1 { font-size: 1.1rem; margin: 0 0 14px; color: var(--ink-soft); font-weight: 600; }
+
+  /* Hero */
+  .hero {
+    background: var(--ink);
+    color: #fff;
+    border-radius: 6px;
+    padding: 22px 20px 20px;
+  }
+  .hero-top { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; justify-content: space-between; }
+  .big { font-size: clamp(4.2rem, 22vw, 6.5rem); line-height: 0.9; margin: 0; }
+  .big small { font-size: 1.1rem; font-weight: 500; margin-left: 8px; opacity: .8; font-family: system-ui, sans-serif; letter-spacing: 0; }
+  .datebox label { display: block; font-size: .8rem; opacity: .75; margin-bottom: 4px; }
+  input[type="date"], input[type="number"], input[type="text"] {
+    font: inherit;
+    color: inherit;
+    border-radius: 4px;
+  }
+  .hero input[type="date"] {
+    background: rgba(255,255,255,.1);
+    border: 1px solid rgba(255,255,255,.35);
+    color: #fff;
+    padding: 8px 10px;
+    color-scheme: dark;
+  }
+  .msg { margin: 16px 0 0; font-size: 1rem; }
+  .msg b { color: var(--marigold); }
+
+  /* Day dots */
+  .dots { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 18px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,.14); }
+  .dot.past { background: rgba(255,255,255,.55); }
+  .dot.today { background: var(--marigold); box-shadow: 0 0 0 3px rgba(242,176,30,.3); }
+  .dot.rev { background: transparent; border: 1.5px solid var(--marigold); }
+  .legend { font-size: .78rem; opacity: .7; margin-top: 8px; }
+
+  /* Stats */
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 14px 0; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 12px; }
+  .stat .n { font-size: 1.7rem; font-weight: 700; font-family: "Iowan Old Style", Georgia, serif; line-height: 1.1; }
+  .stat .l { font-size: .78rem; color: var(--ink-soft); }
+  .buffer { display: flex; align-items: center; gap: 8px; font-size: .88rem; color: var(--ink-soft); margin: 0 0 18px; flex-wrap: wrap; }
+  .buffer input { width: 64px; padding: 6px 8px; border: 1px solid var(--line); background: #fff; }
+
+  /* Overall progress */
+  .bar { height: 10px; background: var(--line); border-radius: 5px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: var(--marigold); width: 0; transition: width .3s; }
+  .bar.sub { height: 6px; }
+  .bar.sub > i { background: var(--done); }
+
+  /* Subjects */
+  h2 { font-size: 1.25rem; margin: 26px 0 10px; }
+  .subject { background: var(--card); border: 1px solid var(--line); border-radius: 6px; margin-bottom: 12px; }
+  .subject > summary {
+    list-style: none; cursor: pointer; padding: 14px; display: block;
+  }
+  .subject > summary::-webkit-details-marker { display: none; }
+  .srow { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 8px; }
+  .sname { font-weight: 650; font-size: 1.02rem; }
+  .scount { font-size: .85rem; color: var(--ink-soft); white-space: nowrap; }
+  .sbody { padding: 0 14px 14px; border-top: 1px solid var(--line); }
+  .ch { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .ch input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--done); flex: none; }
+  .ch span { flex: 1; word-break: break-word; }
+  .ch.done span { color: var(--ink-soft); text-decoration: line-through; }
+  .x { background: none; border: 0; color: var(--ink-soft); font-size: 1.2rem; cursor: pointer; padding: 4px 8px; }
+  .x:hover { color: var(--alert); }
+  .add { display: flex; gap: 8px; margin-top: 12px; }
+  .add input { flex: 1; min-width: 0; padding: 10px; border: 1px solid var(--line); background: #fff; }
+  button.btn {
+    font: inherit; font-weight: 600; background: var(--ink); color: #fff; border: 0;
+    padding: 10px 14px; border-radius: 4px; cursor: pointer;
+  }
+  button.btn.ghost { background: transparent; color: var(--ink-soft); border: 1px solid var(--line); }
+  .empty { color: var(--ink-soft); font-size: .9rem; padding: 12px 0 0; }
+  .subject-actions { display: flex; gap: 8px; margin-top: 12px; }
+  .new-subject { display: flex; gap: 8px; margin-top: 4px; }
+  .new-subject input { flex: 1; min-width: 0; padding: 10px; border: 1px solid var(--line); background: #fff; }
+
+  :focus-visible { outline: 3px solid var(--marigold); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { .bar > i { transition: none; } }
+  @media (max-width: 420px) { .stats { gap: 6px; } .stat { padding: 10px 8px; } .stat .n { font-size: 1.4rem; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Board exam tracker</h1>
+
+  <section class="hero" aria-live="polite">
+    <div class="hero-top">
+      <p class="big" id="days">–<small id="daysLabel">days left</small></p>
+      <div class="datebox">
+        <label for="examDate">Exam date</label>
+        <input type="date" id="examDate">
+      </div>
+    </div>
+    <p class="msg" id="msg">Set your first exam date to start the countdown.</p>
+    <div class="dots" id="dots" aria-hidden="true"></div>
+    <div class="legend" id="legend"></div>
+  </section>
+
+  <div class="stats">
+    <div class="stat"><div class="n" id="sDone">0</div><div class="l">chapters done</div></div>
+    <div class="stat"><div class="n" id="sLeft">0</div><div class="l">chapters left</div></div>
+    <div class="stat"><div class="n" id="sPace">–</div><div class="l">per day needed</div></div>
+  </div>
+
+  <div class="buffer">
+    <label for="buffer">Keep last</label>
+    <input type="number" id="buffer" min="0" max="60" inputmode="numeric">
+    <span>days for revision</span>
+  </div>
+
+  <div class="bar" role="progressbar" aria-label="Overall syllabus progress" aria-valuemin="0" aria-valuemax="100" id="overallBarWrap"><i id="overallBar"></i></div>
+
+  <h2>Syllabus</h2>
+  <div id="subjects"></div>
+
+  <div class="new-subject">
+    <input type="text" id="newSubject" placeholder="Add a subject (e.g. Accountancy)" aria-label="New subject name">
+    <button class="btn" id="addSubject">Add subject</button>
+  </div>
+</div>
+
+<script>
+const KEY = "exam-tracker-v1";
+const DAY = 86400000;
+const $ = (id) => document.getElementById(id);
+
+function mkChapters(list) { return list.map((n, i) => ({ id: i + 1, name: n, done: false })); }
+function seedSubjects() {
+  const data = [
+    ["Accountancy: Part A", [
+      "Accounting for Partnership Firm",
+      "Change in Profit Sharing Ratio",
+      "Admission of a Partner",
+      "Retirement or Death of a Partner",
+      "Dissolution of a Partnership Firm",
+      "Issue of Shares",
+      "Types of Debentures"
+    ]],
+    ["Accountancy: Analysis of Financial Statements", [
+      "Financial Statements of a Company (As per Schedule III)",
+      "Financial Statement Analysis (Including MCQs and Assertion-Reason)",
+      "Tools for Financial Analysis: Comparative Statements",
+      "Common Size Statements",
+      "Accounting Ratios",
+      "Cash Flow Statement"
+    ]],
+    ["Business Studies: Part 1", [
+      "Nature and Significance of Management",
+      "Principles of Management",
+      "Business Environment",
+      "Planning",
+      "Organising",
+      "Staffing",
+      "Directing",
+      "Controlling"
+    ]],
+    ["Business Studies: Part 2", [
+      "Financial Management",
+      "Financial Market",
+      "Marketing Management",
+      "Consumer Protection"
+    ]],
+    ["Macro Economics", [
+      "Introduction",
+      "Some Basic Concepts of Macroeconomics",
+      "National Income and Related Aggregates",
+      "Methods of Calculating National Income",
+      "Money",
+      "Banking",
+      "Aggregate Demand, Aggregate Supply and Related Concepts",
+      "Short Run Equilibrium Output",
+      "Problem of Deficient Demand and Excess Demand",
+      "Government Budget and the Economy",
+      "Foreign Exchange Rate",
+      "Balance of Payments"
+    ]],
+    ["Indian Economy", [
+      "Indian Economy on the Eve of Independence",
+      "Indian Economy (1950-1990)",
+      "Economic Reforms since 1991",
+      "Human Capital Formation in India",
+      "Rural Development",
+      "Employment",
+      "Environment and Sustainable Development",
+      "Comparative Development Experiences of India and its Neighbours"
+    ]],
+    ["English: Vistas", [
+      "The Third Level",
+      "The Tiger King",
+      "Journey to the End of the Earth",
+      "The Enemy",
+      "On the Face of It",
+      "Memories of Childhood"
+    ]],
+    ["English: Flamingo Prose", [
+      "The Last Lesson",
+      "Lost Spring",
+      "Deep Water",
+      "The Rattrap",
+      "Indigo",
+      "Poets and Pancakes",
+      "The Interview",
+      "Going Places"
+    ]],
+    ["English: Flamingo Poems", [
+      "My Mother at Sixty-Six",
+      "Keeping Quiet",
+      "A Thing of Beauty",
+      "A Roadside Stand",
+      "Aunt Jennifer's Tigers"
+    ]],
+    ["English: Writing Section", [
+      "Notice Writing",
+      "Invitations and Replies (Formal/Informal)",
+      "Letter Writing (Job Application with Bio-data / Letter to the Editor)",
+      "Article / Report Writing"
+    ]],
+    ["Physical Education", [
+      "Management of Sporting Events",
+      "Children and Women in Sports",
+      "Yoga",
+      "Physical Education and Sports for CWSN (Children with Special Needs)",
+      "Sports and Nutrition",
+      "Test and Measurement in Sports",
+      "Physiology and Injuries in Sports",
+      "Biomechanics and Sports",
+      "Psychology and Sports",
+      "Training in Sports"
+    ]]
+  ];
+  return data.map((d, i) => ({ id: i + 1, name: d[0], chapters: mkChapters(d[1]) }));
+}
+
+const DEFAULT = {
+  examDate: "",
+  startDate: "",
+  buffer: 7,
+  seeded2: true,
+  subjects: seedSubjects()
+};
+let state = JSON.parse(JSON.stringify(DEFAULT));
+let nextId = 100;
+let openIds = new Set([1]);
+let focusId = null;
+
+/* ---- storage: uses persistent artifact storage if present, else localStorage, else memory ---- */
+async function load() {
+  try {
+    if (window.storage) {
+      const r = await window.storage.get(KEY);
+      if (r && r.value) state = JSON.parse(r.value);
+    } else if (window.localStorage) {
+      const v = localStorage.getItem(KEY);
+      if (v) state = JSON.parse(v);
+    }
+  } catch (e) { /* first run or storage unavailable */ }
+  if (!state.seeded2) {
+    const old = state.subjects || [];
+    const doneMap = {};
+    old.forEach(sb => sb.chapters.forEach(c => { if (c.done) doneMap[sb.name + "|" + c.name] = true; }));
+    const seeded = seedSubjects();
+    seeded.forEach(sb => sb.chapters.forEach(c => { if (doneMap[sb.name + "|" + c.name]) c.done = true; }));
+    const EMPTY_DEFAULTS = ["Accountancy", "Business Studies", "Economics", "English"];
+    const keep = old.filter(sb =>
+      !seeded.some(x => x.name === sb.name) &&
+      !(EMPTY_DEFAULTS.includes(sb.name) && !sb.chapters.length)
+    );
+    keep.forEach((sb, i) => { sb.id = 1000 + i; });
+    state.subjects = seeded.concat(keep);
+    state.seeded2 = true;
+  }
+  nextId = Date.now() % 1e9;
+}
+async function save() {
+  try {
+    const v = JSON.stringify(state);
+    if (window.storage) await window.storage.set(KEY, v);
+    else if (window.localStorage) localStorage.setItem(KEY, v);
+  } catch (e) { /* keep working in memory */ }
+}
+
+/* ---- dates ---- */
+function toDate(s) { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); }
+function today() { const t = new Date(); return new Date(t.getFullYear(), t.getMonth(), t.getDate()); }
+function iso(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+function fmt(d) { return d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }); }
+
+/* ---- render ---- */
+function totals() {
+  let total = 0, done = 0;
+  state.subjects.forEach(s => { total += s.chapters.length; done += s.chapters.filter(c => c.done).length; });
+  return { total, done, left: total - done };
+}
+
+function renderHero() {
+  const t = totals();
+  $("examDate").value = state.examDate;
+  $("buffer").value = state.buffer;
+  const dotsEl = $("dots");
+  dotsEl.innerHTML = "";
+  $("legend").textContent = "";
+
+  if (!state.examDate) {
+    $("days").firstChild.nodeValue = "–";
+    $("daysLabel").textContent = "days left";
+    $("msg").textContent = "Set your first exam date to start the countdown.";
+    $("sPace").textContent = "–";
+    return;
+  }
+
+  const exam = toDate(state.examDate);
+  const now = today();
+  const left = Math.round((exam - now) / DAY);
+
+  if (left < 0) {
+    $("days").firstChild.nodeValue = "0";
+    $("daysLabel").textContent = "days left";
+    $("msg").textContent = "This exam date has passed. Pick your next exam date above.";
+    $("sPace").textContent = "–";
+    return;
+  }
+
+  $("days").firstChild.nodeValue = left;
+  $("daysLabel").textContent = left === 1 ? "day left" : "days left";
+
+  const study = Math.max(left - state.buffer, 0);
+  let pace = "–";
+  let msg;
+  if (t.total === 0) {
+    msg = "Add your chapters below and the daily target will appear here.";
+  } else if (t.left === 0) {
+    msg = "<b>Syllabus complete.</b> Use the remaining days for revision and past papers.";
+    pace = "0";
+  } else if (left === 0) {
+    msg = "<b>Exam day.</b> " + t.left + " chapter" + (t.left === 1 ? "" : "s") + " unfinished. Stay calm and revise what you know.";
+  } else if (study === 0) {
+    msg = "You are inside your revision window with <b>" + t.left + " chapters</b> still open. Focus on the highest-marks ones first.";
+    pace = String(t.left);
+  } else {
+    const p = t.left / study;
+    pace = p >= 10 ? Math.round(p) : (Math.round(p * 10) / 10).toString();
+    msg = "Finish <b>" + pace + " chapter" + (pace === "1" ? "" : "s") + " a day</b> to complete the syllabus by " + fmt(new Date(exam.getTime() - state.buffer * DAY)) + ".";
+  }
+  $("msg").innerHTML = msg;
+  $("sPace").textContent = pace;
+
+  // day dots: one per day from start to exam
+  if (!state.startDate || toDate(state.startDate) > now) state.startDate = iso(now);
+  const start = toDate(state.startDate);
+  const totalDays = Math.max(Math.round((exam - start) / DAY), 1);
+  const passed = Math.round((now - start) / DAY);
+  const frag = document.createDocumentFragment();
+  for (let i = 0; i < totalDays; i++) {
+    const d = document.createElement("span");
+    let cls = "dot";
+    if (i < passed) cls += " past";
+    else if (i === passed) cls += " today";
+    else if (i >= totalDays - state.buffer) cls += " rev";
+    d.className = cls;
+    frag.appendChild(d);
+  }
+  dotsEl.appendChild(frag);
+  $("legend").textContent = "Each dot is one day. Filled = gone, gold = today, outlined = revision days.";
+}
+
+function renderStats() {
+  const t = totals();
+  $("sDone").textContent = t.done;
+  $("sLeft").textContent = t.left;
+  const pct = t.total ? Math.round((t.done / t.total) * 100) : 0;
+  $("overallBar").style.width = pct + "%";
+  $("overallBarWrap").setAttribute("aria-valuenow", pct);
+}
+
+function renderSubjects() {
+  const box = $("subjects");
+  box.innerHTML = "";
+  state.subjects.forEach(s => {
+    const done = s.chapters.filter(c => c.done).length;
+    const pct = s.chapters.length ? Math.round((done / s.chapters.length) * 100) : 0;
+    const det = document.createElement("details");
+    det.className = "subject";
+    det.open = openIds.has(s.id);
+    det.addEventListener("toggle", () => { det.open ? openIds.add(s.id) : openIds.delete(s.id); });
+
+    const sum = document.createElement("summary");
+    sum.innerHTML =
+      '<div class="srow"><span class="sname"></span><span class="scount">' + done + " / " + s.chapters.length + " chapters</span></div>" +
+      '<div class="bar sub"><i style="width:' + pct + '%"></i></div>';
+    sum.querySelector(".sname").textContent = s.name;
+    det.appendChild(sum);
+
+    const body = document.createElement("div");
+    body.className = "sbody";
+
+    if (!s.chapters.length) {
+      const e = document.createElement("p");
+      e.className = "empty";
+      e.textContent = "No chapters yet. Type chapter names below, separated by commas.";
+      body.appendChild(e);
+    }
+
+    s.chapters.forEach(c => {
+      const row = document.createElement("div");
+      row.className = "ch" + (c.done ? " done" : "");
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = c.done;
+      cb.setAttribute("aria-label", "Mark " + c.name + " as done");
+      cb.addEventListener("change", () => { c.done = cb.checked; update(); });
+      const sp = document.createElement("span");
+      sp.textContent = c.name;
+      const x = document.createElement("button");
+      x.className = "x";
+      x.textContent = "×";
+      x.setAttribute("aria-label", "Delete " + c.name);
+      x.addEventListener("click", () => { s.chapters = s.chapters.filter(k => k !== c); update(); });
+      row.append(cb, sp, x);
+      body.appendChild(row);
+    });
+
+    const add = document.createElement("div");
+    add.className = "add";
+    const inp = document.createElement("input");
+    inp.type = "text";
+    inp.placeholder = "Add chapters, e.g. Ch 1, Ch 2, Ch 3";
+    inp.setAttribute("aria-label", "Add chapters to " + s.name);
+    inp.dataset.id = s.id;
+    const btn = document.createElement("button");
+    btn.className = "btn";
+    btn.textContent = "Add";
+    const doAdd = () => {
+      const names = inp.value.split(",").map(v => v.trim()).filter(Boolean);
+      if (!names.length) return;
+      names.forEach(n => s.chapters.push({ id: nextId++, name: n, done: false }));
+      openIds.add(s.id);
+      focusId = s.id;
+      update();
+    };
+    btn.addEventListener("click", doAdd);
+    inp.addEventListener("keydown", e => { if (e.key === "Enter") doAdd(); });
+    add.append(inp, btn);
+    body.appendChild(add);
+
+    const acts = document.createElement("div");
+    acts.className = "subject-actions";
+    const del = document.createElement("button");
+    del.className = "btn ghost";
+    del.textContent = "Delete subject";
+    del.addEventListener("click", () => {
+      if (confirm("Delete " + s.name + " and its chapters?")) {
+        state.subjects = state.subjects.filter(k => k !== s);
+        update();
+      }
+    });
+    acts.appendChild(del);
+    body.appendChild(acts);
+
+    det.appendChild(body);
+    box.appendChild(det);
+  });
+
+  if (focusId !== null) {
+    const el = box.querySelector('input[data-id="' + focusId + '"]');
+    if (el) el.focus();
+    focusId = null;
+  }
+}
+
+function update() { renderHero(); renderStats(); renderSubjects(); save(); }
+
+/* ---- events ---- */
+$("examDate").addEventListener("change", e => {
+  state.examDate = e.target.value;
+  state.startDate = iso(today());
+  update();
+});
+$("buffer").addEventListener("change", e => {
+  const v = parseInt(e.target.value, 10);
+  state.buffer = isNaN(v) ? 0 : Math.min(Math.max(v, 0), 60);
+  update();
+});
+function addSubject() {
+  const v = $("newSubject").value.trim();
+  if (!v) return;
+  const id = nextId++;
+  state.subjects.push({ id, name: v, chapters: [] });
+  openIds.add(id);
+  focusId = id;
+  $("newSubject").value = "";
+  update();
+}
+$("addSubject").addEventListener("click", addSubject);
+$("newSubject").addEventListener("keydown", e => { if (e.key === "Enter") addSubject(); });
+
+load().then(update);
+</script>
+</body>
+</html>
